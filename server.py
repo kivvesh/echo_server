@@ -1,5 +1,8 @@
 import socket
+import argparse
+
 from urllib.parse import urlparse, parse_qs
+from http import HTTPStatus
 
 
 def handle_request(request, client_address):
@@ -16,13 +19,13 @@ def handle_request(request, client_address):
 
     # Получаем статус из параметров запроса
     status_code = query_params.get('status', ['200'])[0]
-
-    # Проверяем, является ли статус кодом
-    if status_code not in ['200', '404', '500']:
-        status_code = '200'
+    try:
+        status = HTTPStatus(int(status_code))
+    except ValueError:
+        status = HTTPStatus(500)
 
     # Формируем ответ
-    response_status = f"{status_code} OK"
+    response_status = f"{status.value} {status.phrase}"
 
     # Заголовки запроса
     headers = "\n".join(lines[1:])  # Все строки после первой
@@ -46,6 +49,12 @@ def handle_request(request, client_address):
 
     return response
 
+def write_config(host, port):
+    with open('.env','w',encoding='utf-8') as config:
+        config.write(
+            f'HOST={host}\n'
+            f'PORT={port}'
+        )
 
 def run_server(host='127.0.0.1', port=8080):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server_socket:
@@ -66,4 +75,11 @@ def run_server(host='127.0.0.1', port=8080):
 
 
 if __name__ == "__main__":
-    run_server()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-p', '--port', type=int, default=8080, help='Порт для запуска сервера (по умолчанию 8080)')
+    parser.add_argument('-H', '--host', type=str, default='127.0.0.1', help='Хост для запуска сервера')
+    args = parser.parse_args()
+    write_config(host=args.host, port=args.port)
+    run_server(host=args.host, port=args.port)
+
+
